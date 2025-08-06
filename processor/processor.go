@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -50,7 +51,12 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 }
 
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
+	fmt.Printf("Received message: %s\n", input)
+	fmt.Printf("Data: %+v\n", data)
 	// 在这里可以使用 p.DB 进行数据库操作
-	p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{})
+	p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: "报名成功了喵~",
+	})
 	return nil
 }
