@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"ninja3-family-bot/model"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -43,6 +44,8 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
+	db.AutoMigrate(&model.User{}, &model.AbyssSignUp{})
+
 	return &Processor{
 		Ctx: ctx,
 		Api: api,
@@ -54,7 +57,7 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 	fmt.Printf("Received message: %s\n", input)
 	fmt.Printf("Data: %+v\n", data)
 
-	member, err := p.Api.GuildMember(p.Ctx, data.GuildID, data.Author.ID)
+	member, err := p.Api.GuildMember(p.Ctx, data.GroupID, data.Author.ID)
 	if err != nil {
 		log.Printf("Failed to get guild member: %v", err)
 		return err
