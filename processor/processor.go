@@ -2,9 +2,9 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"ninja3-family-bot/model"
+	"strings"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -54,25 +54,33 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 }
 
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
-	fmt.Printf("Received message: %s\n", input)
-	fmt.Printf("Data: %+v\n", data)
+	splits := strings.Split(input, " ")
+	if len(splits) < 1 {
+		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+			MsgID:   data.ID,
+			Content: "怎么不说话喵~",
+		})
+		return nil // 没有命令，直接返回
+	}
 
-	member, err := p.Api.GuildMember(p.Ctx, data.GroupID, data.Author.ID)
+	cmd := splits[0]
+	params := splits[1:]
+	processor, err := p.GetCMDProcessor(cmd)
 	if err != nil {
-		log.Printf("Failed to get guild member: %v", err)
-		return err
-	}
-	if member == nil {
-		log.Printf("Member not found in guild: %s", data.GuildID)
-		return fmt.Errorf("member not found in guild: %s", data.GuildID)
+		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+			MsgID:   data.ID,
+			Content: err.Error(),
+		})
+		return nil // 错误信息已发送，直接返回
 	}
 
-	fmt.Printf("Member: %+v\n", member)
+	if err := processor(data, params...); err != nil {
+		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+			MsgID:   data.ID,
+			Content: err.Error(),
+		})
+		return nil // 错误信息已发送，直接返回
+	}
 
-	// 在这里可以使用 p.DB 进行数据库操作
-	p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
-		MsgID:   data.ID,
-		Content: "报名成功了喵~",
-	})
 	return nil
 }
