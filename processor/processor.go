@@ -53,6 +53,19 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
 	fmt.Printf("Received message: %s\n", input)
 	fmt.Printf("Data: %+v\n", data)
+
+	member, err := p.Api.GuildMember(p.Ctx, data.GuildID, data.Author.ID)
+	if err != nil {
+		log.Printf("Failed to get guild member: %v", err)
+		return err
+	}
+	if member == nil {
+		log.Printf("Member not found in guild: %s", data.GuildID)
+		return fmt.Errorf("member not found in guild: %s", data.GuildID)
+	}
+
+	fmt.Printf("Member: %+v\n", member)
+
 	// 在这里可以使用 p.DB 进行数据库操作
 	p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
 		MsgID:   data.ID,
