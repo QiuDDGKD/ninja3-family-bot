@@ -22,8 +22,8 @@ type Processor struct {
 }
 
 type ProcessorConfig struct {
-	QQBotCredentials *token.QQBotCredentials
-	MysqlDSN         string
+	QQBotCredentials *token.QQBotCredentials `yaml:"QQBotCredentials"`
+	MysqlDSN         string                  `yaml:"MysqlDSN"`
 }
 
 func NewProcessor(conf *ProcessorConfig) *Processor {
