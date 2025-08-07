@@ -16,6 +16,14 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 	switch cmd {
 	case "/深渊报名":
 		return p.AbyssSignUp, nil
+	case "/查询深渊报名":
+		return p.QueryAbyssSignUp, nil
+	case "/深渊请假":
+		return p.AbyssLeave, nil
+	case "/查询深渊请假":
+		return p.QueryAbyssLeave, nil
+	case "/登记":
+		return p.Register, nil
 	}
 
 	return nil, errors.New("不知道你要干嘛喵~")
@@ -48,8 +56,14 @@ func (p *Processor) AbyssSignUp(data *dto.WSGroupATMessageData, params ...string
 		}
 	}
 
+	// 删除请假记录
+	date := tools.GetNextFriday()
+	if err := p.DB.Where("date = ? AND user_id = ?", date, User.ID).Delete(&model.AbyssLeave{}).Error; err != nil {
+		return errors.New("取消请假失败了喵~")
+	}
+
 	abyssSignUp := model.AbyssSignUp{
-		Date:     tools.GetNextFriday(),
+		Date:     date,
 		UserID:   User.ID,
 		Nickname: User.Nickname,
 		ATK:      User.ATK,
@@ -61,6 +75,137 @@ func (p *Processor) AbyssSignUp(data *dto.WSGroupATMessageData, params ...string
 	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
 		MsgID:   data.ID,
 		Content: "报名成功了喵~",
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+// 查询深渊报名
+func (p *Processor) QueryAbyssSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+	var abyssSignUps []model.AbyssSignUp
+	if err := p.DB.Where("date = ?", tools.GetNextFriday()).Order("atk desc").Find(&abyssSignUps).Error; err != nil {
+		return errors.New("查询报名信息失败了喵~")
+	}
+
+	if len(abyssSignUps) == 0 {
+		return errors.New("没有人报名喵~")
+	}
+
+	var response string
+	for _, signUp := range abyssSignUps {
+		response += signUp.Nickname + " - 面板: " + strconv.Itoa(signUp.ATK) + "\n"
+	}
+
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: response,
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+// 深渊请假
+func (p *Processor) AbyssLeave(data *dto.WSGroupATMessageData, params ...string) error {
+	if len(params) < 1 {
+		return errors.New("需要传入请假理由喵~")
+	}
+
+	reason := params[0]
+
+	var user model.User
+	if err := p.DB.Where("id = ?", data.Author.ID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("还没有登记信息，需要先登记喵~")
+		}
+		return errors.New("查询用户信息失败了喵~")
+	}
+
+	// 删除报名记录
+	date := tools.GetNextFriday()
+	if err := p.DB.Where("date = ? AND user_id = ?", date, user.ID).Delete(&model.AbyssSignUp{}).Error; err != nil {
+		return errors.New("取消报名失败了喵~")
+	}
+
+	abyssLeave := model.AbyssLeave{
+		Date:     date,
+		UserID:   user.ID,
+		Nickname: user.Nickname,
+		Reason:   reason,
+	}
+
+	if err := p.DB.Save(&abyssLeave).Error; err != nil {
+		return errors.New("请假失败了喵~")
+	}
+
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: "请假成功了喵~",
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+// 查询深渊请假
+func (p *Processor) QueryAbyssLeave(data *dto.WSGroupATMessageData, params ...string) error {
+	var abyssLeaves []model.AbyssLeave
+	if err := p.DB.Where("date = ?", tools.GetNextFriday()).Order("user_id").Find(&abyssLeaves).Error; err != nil {
+		return errors.New("查询请假信息失败了喵~")
+	}
+
+	if len(abyssLeaves) == 0 {
+		return errors.New("没有人请假喵~")
+	}
+
+	var response string
+	for _, leave := range abyssLeaves {
+		response += leave.Nickname + " - 理由: " + leave.Reason + "\n"
+	}
+
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: response,
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) error {
+	if len(params) < 2 {
+		return errors.New("需要传入昵称和面板喵~")
+	}
+
+	nickname := params[0]
+	atkStr := params[1]
+	atk, err := strconv.Atoi(atkStr)
+	if err != nil {
+		return errors.New("面板必须是数字喵~")
+	}
+
+	user := model.User{
+		ID:       data.Author.ID,
+		Nickname: nickname,
+		ATK:      atk,
+	}
+
+	if err := p.DB.Save(&user).Error; err != nil {
+		return errors.New("保存用户信息失败了喵~")
+	}
+
+	_, err = p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: "登记成功了喵~",
 	})
 	if err != nil {
 		return errors.New("回复消息失败了喵~")

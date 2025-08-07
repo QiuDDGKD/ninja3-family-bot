@@ -44,7 +44,7 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	db.AutoMigrate(&model.User{}, &model.AbyssSignUp{})
+	db.AutoMigrate(&model.User{}, &model.AbyssSignUp{}, &model.AbyssLeave{})
 
 	return &Processor{
 		Ctx: ctx,
