@@ -29,6 +29,8 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 		return p.BattleSignUp, nil
 	case "/查询家族战报名":
 		return p.QueryBattleSignUp, nil
+	case "/抽奖":
+		return p.Gacha, nil
 	}
 
 	return nil, errors.New("不知道你要干嘛喵~")
