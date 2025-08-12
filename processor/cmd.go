@@ -6,6 +6,8 @@ import (
 	"ninja3-family-bot/model"
 	"ninja3-family-bot/tools"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/tencent-connect/botgo/dto"
 	"gorm.io/gorm"
@@ -31,6 +33,8 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 		return p.QueryBattleSignUp, nil
 	case "/抽奖":
 		return p.Gacha, nil
+	case "/导入深渊战报":
+		return p.ImportAbyssRecord, nil
 	}
 
 	return nil, errors.New("不知道你要干嘛喵~")
@@ -345,6 +349,78 @@ func (p *Processor) Gacha(data *dto.WSGroupATMessageData, params ...string) erro
 	})
 	if err != nil {
 		return errors.New("回复消息失败了喵~")
+	}
+	return nil
+}
+
+func (p *Processor) ImportAbyssRecord(data *dto.WSGroupATMessageData, params ...string) error {
+	if len(params) < 1 {
+		return errors.New("需要传入战报文件路径喵~")
+	}
+
+	url := params[0]
+	filename, err := tools.DownloadByUrl(url)
+	if err != nil {
+		return fmt.Errorf("下载战报文件失败了喵~: %v", err)
+	}
+
+	rows, err := tools.ReadXLSX(filename)
+	if err != nil {
+		return fmt.Errorf("读取战报文件失败了喵~: %v", err)
+	}
+
+	splits := strings.Split(filename, "_")
+	if len(splits) < 2 {
+		return errors.New("战报文件名格式不正确喵~")
+	}
+	date := splits[0]
+
+	records := make([]model.AbyssRecord, 0, len(rows)-1)
+	for i := 3; i < len(rows); i++ {
+		if len(rows[i]) < 4 {
+			continue
+		}
+		splits := strings.Split(rows[i][1], "（")
+		if len(splits) < 2 {
+			continue
+		}
+		nickname := splits[0]
+		uid := strings.TrimRight(splits[1], "）")
+		damage, err := strconv.Atoi(rows[i][2])
+		if err != nil {
+			continue
+		}
+		times, err := strconv.Atoi(rows[i][3])
+		if err != nil {
+			continue
+		}
+
+		d, err := time.Parse("2006-01-02", date)
+		if err != nil {
+			return fmt.Errorf("解析日期失败了喵~: %v", err)
+		}
+		record := model.AbyssRecord{
+			Uid:      uid,
+			Date:     d,
+			Damage:   damage,
+			Times:    times,
+			Nickname: nickname,
+		}
+		records = append(records, record)
+	}
+
+	if len(records) == 0 {
+		return errors.New("没有有效的战报记录喵~")
+	}
+	if err := p.DB.Save(&records).Error; err != nil {
+		return fmt.Errorf("保存战报记录失败了喵~: %v", err)
+	}
+	_, err = p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: fmt.Sprintf("成功导入 %d 条战报记录喵~", len(records)),
+	})
+	if err != nil {
+		return fmt.Errorf("回复消息失败了喵~: %v", err)
 	}
 	return nil
 }
