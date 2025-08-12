@@ -299,3 +299,50 @@ func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...
 
 	return nil
 }
+
+// 抽奖
+func (p *Processor) Gacha(data *dto.WSGroupATMessageData, params ...string) error {
+	tp, numStr := params[0], params[1]
+	num, err := strconv.Atoi(numStr)
+	if err != nil {
+		return errors.New("抽奖数量必须是数字喵~")
+	}
+	if num <= 0 {
+		return errors.New("抽奖数量必须大于 0 喵~")
+	}
+
+	result := make([]string, 0, num)
+	switch tp {
+	case "队长":
+		result, err = p.GachaCaptain(num)
+	case "成员":
+		result, err = p.GachaMember(num, params[2:])
+	default:
+		err = errors.New("抽奖类型必须是 队长 或 成员 喵~")
+	}
+	if err != nil {
+		return err
+	}
+
+	response := fmt.Sprintf("抽取 %d 个 %s 的结果：\n", num, tp)
+	for i, name := range result {
+		response += fmt.Sprintf("%d. %s\n", i+1, name)
+	}
+	if len(result) == 0 {
+		response = "没有抽到人喵~"
+	}
+
+	if len(response) > 2000 {
+		response = "抽奖结果太长了喵~ 请减少抽奖数量或类型。"
+		return errors.New(response)
+	}
+
+	_, err = p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: response,
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+	return nil
+}

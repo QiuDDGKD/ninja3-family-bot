@@ -20,6 +20,22 @@ func GetNextFriday() string {
 	return nextFriday.Format("2006-01-02")
 }
 
+// 获取上一个周五日期字符串
+func GetLastFriday() string {
+	// 获取当前时间
+	now := time.Now()
+
+	// 计算上一个周五的日期
+	daysSinceFriday := (int(now.Weekday()) - 5 + 7) % 7
+	if daysSinceFriday == 0 {
+		daysSinceFriday = 7 // 如果今天是周五，则获取上一个周五
+	}
+	lastFriday := now.AddDate(0, 0, -daysSinceFriday)
+
+	// 返回格式化后的日期字符串
+	return lastFriday.Format("2006-01-02")
+}
+
 // 获取下一个家族战日期
 func GetNextBattleDate() string {
 	// 获取当前时间
