@@ -37,7 +37,7 @@ func ParseFilter(params []string) AbyssRecordFilter {
 
 // 抽取队长
 func (p *Processor) GachaCaptain(num int) ([]string, error) {
-	var captains []model.User
+	var captains []model.AbyssCaptain
 	if err := p.DB.Find(&captains).Error; err != nil {
 		return nil, errors.New("查询队长失败了喵~")
 	}
