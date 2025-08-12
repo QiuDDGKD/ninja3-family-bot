@@ -289,5 +289,13 @@ func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...
 		}
 	}
 
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: response,
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
 	return nil
 }
