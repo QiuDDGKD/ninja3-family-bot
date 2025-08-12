@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"ninja3-family-bot/model"
-	"strings"
+	"ninja3-family-bot/tools"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -44,7 +44,7 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	db.AutoMigrate(&model.User{}, &model.AbyssSignUp{}, &model.AbyssLeave{})
+	db.AutoMigrate(&model.User{}, &model.AbyssSignUp{}, &model.AbyssLeave{}, &model.BattleSignUp{})
 
 	return &Processor{
 		Ctx: ctx,
@@ -54,7 +54,7 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 }
 
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
-	splits := strings.Split(input, " ")
+	splits := tools.GetSplits(input)
 	if len(splits) < 1 {
 		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
 			MsgID:   data.ID,

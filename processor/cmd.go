@@ -25,6 +25,10 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 		return p.QueryAbyssLeave, nil
 	case "/登记":
 		return p.Register, nil
+	case "/家族战报名":
+		return p.BattleSignUp, nil
+	case "/查询家族战报名":
+		return p.QueryBattleSignUp, nil
 	}
 
 	return nil, errors.New("不知道你要干嘛喵~")
@@ -212,6 +216,83 @@ func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) e
 	})
 	if err != nil {
 		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+	if len(params) < 2 {
+		return errors.New("需要传入面板和类型喵~")
+	}
+
+	atkStr := params[0]
+	atk, err := strconv.Atoi(atkStr)
+	if err != nil {
+		return errors.New("面板必须是数字喵~")
+	}
+
+	tp := params[1]
+	if _, ok := model.BattleTypeMap[tp]; !ok {
+		return errors.New("类型必须是 先锋, 副将, 主将, 王牌, 头目 之一喵~")
+	}
+
+	var user model.User
+	if err := p.DB.Where("id = ?", data.Author.ID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("还没有登记信息，需要先登记喵~")
+		}
+		return errors.New("查询用户信息失败了喵~")
+	}
+
+	battleSignUp := model.BattleSignUp{
+		Date:     tools.GetNextBattleDate(),
+		UserID:   user.ID,
+		Nickname: user.Nickname,
+		ATK:      atk,
+		Tp:       tp,
+	}
+
+	if err := p.DB.Save(&battleSignUp).Error; err != nil {
+		return errors.New("报名失败了喵~")
+	}
+
+	_, err = p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: "报名成功了喵~",
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+
+	return nil
+}
+
+// 查询家族战报名
+func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+	var battleSignUps []model.BattleSignUp
+	if err := p.DB.Where("date = ?", tools.GetNextBattleDate()).Order("tp").Find(&battleSignUps).Error; err != nil {
+		return errors.New("查询报名信息失败了喵~")
+	}
+
+	if len(battleSignUps) == 0 {
+		return errors.New("没有人报名喵~")
+	}
+
+	tpSignUpMap := make(map[string][]model.BattleSignUp)
+	for _, signUp := range battleSignUps {
+		tpSignUpMap[signUp.Tp] = append(tpSignUpMap[signUp.Tp], signUp)
+	}
+
+	var response string = fmt.Sprintf("\n目前报名总人数： %d 人\n", len(battleSignUps))
+	response += "报名名单：\n"
+	for _, tp := range model.BattleTypes {
+		if signUps, ok := tpSignUpMap[tp]; ok {
+			response += fmt.Sprintf("\n%s：\n", tp)
+			for _, signUp := range signUps {
+				response += signUp.Nickname + " - 面板: " + strconv.Itoa(signUp.ATK) + "\n"
+			}
+		}
 	}
 
 	return nil
