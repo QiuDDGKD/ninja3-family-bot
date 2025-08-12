@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"ninja3-family-bot/model"
 	"ninja3-family-bot/tools"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -368,6 +369,7 @@ func (p *Processor) ImportAbyssRecord(data *dto.WSGroupATMessageData, params ...
 	if err != nil {
 		return fmt.Errorf("读取战报文件失败了喵~: %v", err)
 	}
+	os.Remove(filename) // 删除临时文件
 
 	splits := strings.Split(filename, "_")
 	if len(splits) < 2 {
