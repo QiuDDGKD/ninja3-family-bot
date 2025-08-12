@@ -2,6 +2,7 @@ package processor
 
 import (
 	"errors"
+	"fmt"
 	"ninja3-family-bot/model"
 	"ninja3-family-bot/tools"
 	"strconv"
@@ -94,7 +95,8 @@ func (p *Processor) QueryAbyssSignUp(data *dto.WSGroupATMessageData, params ...s
 		return errors.New("没有人报名喵~")
 	}
 
-	var response string
+	var response string = fmt.Sprintf("\n目前报名总人数： %d 人\n", len(abyssSignUps))
+	response += "报名名单：\n"
 	for _, signUp := range abyssSignUps {
 		response += signUp.Nickname + " - 面板: " + strconv.Itoa(signUp.ATK) + "\n"
 	}
@@ -165,7 +167,8 @@ func (p *Processor) QueryAbyssLeave(data *dto.WSGroupATMessageData, params ...st
 		return errors.New("没有人请假喵~")
 	}
 
-	var response string
+	var response string = fmt.Sprintf("\n目前请假总人数： %d 人\n", len(abyssLeaves))
+	response += "请假名单：\n"
 	for _, leave := range abyssLeaves {
 		response += leave.Nickname + " - 理由: " + leave.Reason + "\n"
 	}
