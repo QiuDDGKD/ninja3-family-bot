@@ -222,17 +222,11 @@ func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) e
 }
 
 func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...string) error {
-	if len(params) < 2 {
-		return errors.New("需要传入面板和类型喵~")
+	if len(params) < 1 {
+		return errors.New("需要传入报名的类型喵~")
 	}
 
-	atkStr := params[0]
-	atk, err := strconv.Atoi(atkStr)
-	if err != nil {
-		return errors.New("面板必须是数字喵~")
-	}
-
-	tp := params[1]
+	tp := params[0]
 	if _, ok := model.BattleTypeMap[tp]; !ok {
 		return errors.New("类型必须是 先锋, 副将, 主将, 王牌, 头目 之一喵~")
 	}
@@ -249,7 +243,7 @@ func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...strin
 		Date:     tools.GetNextBattleDate(),
 		UserID:   user.ID,
 		Nickname: user.Nickname,
-		ATK:      atk,
+		ATK:      user.ATK,
 		Tp:       tp,
 	}
 
@@ -257,7 +251,7 @@ func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...strin
 		return errors.New("报名失败了喵~")
 	}
 
-	_, err = p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
 		MsgID:   data.ID,
 		Content: "报名成功了喵~",
 	})
