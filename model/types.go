@@ -30,6 +30,13 @@ type BattleSignUp struct {
 	Tp       string `gorm:"column:tp"`
 }
 
+type BattleLeave struct {
+	Date     string `gorm:"primaryKey;column:date"`
+	UserID   string `gorm:"primaryKey;column:user_id"`
+	Nickname string `gorm:"column:nickname"`
+	Reason   string `gorm:"column:reason"`
+}
+
 var BattleTypeMap = map[string]struct{}{
 	"先锋": {},
 	"副将": {},

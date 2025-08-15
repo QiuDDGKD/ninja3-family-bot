@@ -32,6 +32,10 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 		return p.BattleSignUp, nil
 	case "/查询家族战报名":
 		return p.QueryBattleSignUp, nil
+	case "/家族战请假":
+		return p.BattleLeave, nil
+	case "/查询家族战请假":
+		return p.QueryBattleLeave, nil
 	case "/抽奖":
 		return p.Gacha, nil
 	case "/导入深渊战报":
@@ -304,6 +308,69 @@ func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...
 		return errors.New("回复消息失败了喵~")
 	}
 
+	return nil
+}
+
+// 家族战请假
+func (p *Processor) BattleLeave(data *dto.WSGroupATMessageData, params ...string) error {
+	if len(params) < 1 {
+		return errors.New("需要传入请假理由喵~")
+	}
+
+	reason := params[0]
+	var user model.User
+	if err := p.DB.Where("id = ?", data.Author.ID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("还没有登记信息，需要先登记喵~")
+		}
+		return errors.New("查询用户信息失败了喵~")
+	}
+
+	// 删除报名记录
+	date := tools.GetNextBattleDate()
+	if err := p.DB.Where("date = ? AND user_id = ?", date, user.ID).Delete(&model.BattleSignUp{}).Error; err != nil {
+		return errors.New("取消报名失败了喵~")
+	}
+	battleLeave := model.BattleLeave{
+		Date:     date,
+		UserID:   user.ID,
+		Nickname: user.Nickname,
+		Reason:   reason,
+	}
+	if err := p.DB.Save(&battleLeave).Error; err != nil {
+		return errors.New("请假失败了喵~")
+	}
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: "请假成功了喵~",
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
+	return nil
+}
+
+// 查询家族战请假
+func (p *Processor) QueryBattleLeave(data *dto.WSGroupATMessageData, params ...string) error {
+	var battleLeaves []model.BattleLeave
+	if err := p.DB.Where("date = ?", tools.GetNextBattleDate()).Order("user_id").Find(&battleLeaves).Error; err != nil {
+		return errors.New("查询请假信息失败了喵~")
+	}
+	if len(battleLeaves) == 0 {
+		return errors.New("没有人请假喵~")
+	}
+	var response string = fmt.Sprintf("\n目前请假总人数： %d 人\n", len(battleLeaves))
+	response += "请假名单：\n"
+	for _, leave := range battleLeaves {
+		response += leave.Nickname + " - 理由: " + leave.Reason + "\n"
+	}
+	_, err := p.Api.PostGroupMessage(p.Ctx, data.GroupID, dto.MessageToCreate{
+		MsgID:   data.ID,
+		Content: response,
+	})
+	if err != nil {
+		return errors.New("回复消息失败了喵~")
+	}
 	return nil
 }
 
