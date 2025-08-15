@@ -11,9 +11,6 @@ func GetNextFriday() string {
 
 	// 计算下一个周五的日期
 	daysUntilFriday := (5 - int(now.Weekday()) + 7) % 7
-	if daysUntilFriday == 0 {
-		daysUntilFriday = 7 // 如果今天是周五，则获取下一个周五
-	}
 	nextFriday := now.AddDate(0, 0, daysUntilFriday)
 
 	// 返回格式化后的日期字符串
@@ -27,9 +24,6 @@ func GetLastFriday() string {
 
 	// 计算上一个周五的日期
 	daysSinceFriday := (int(now.Weekday()) - 5 + 7) % 7
-	if daysSinceFriday == 0 {
-		daysSinceFriday = 7 // 如果今天是周五，则获取上一个周五
-	}
 	lastFriday := now.AddDate(0, 0, -daysSinceFriday)
 
 	// 返回格式化后的日期字符串
