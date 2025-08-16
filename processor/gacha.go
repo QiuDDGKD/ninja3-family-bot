@@ -38,7 +38,8 @@ func ParseFilter(params []string) AbyssRecordFilter {
 // 抽取队长
 func (p *Processor) GachaCaptain(num int) ([]string, error) {
 	var captains []model.AbyssCaptain
-	if err := p.DB.Where(&model.AbyssCaptain{Enabled: true}).Find(&captains).Error; err != nil {
+	// 添加 family_id 查询条件
+	if err := p.DB.Where(&model.AbyssCaptain{FamilyID: p.Family.ID, Enabled: true}).Find(&captains).Error; err != nil {
 		return nil, errors.New("查询队长失败了喵~")
 	}
 	if len(captains) == 0 {
@@ -62,7 +63,7 @@ func (p *Processor) GachaCaptain(num int) ([]string, error) {
 // 抽取成员
 func (p *Processor) GachaMember(num int, filterParams []string) ([]string, error) {
 	filter := ParseFilter(filterParams)
-	stat := p.DB.Order("damage DESC")
+	stat := p.DB.Where("family_id = ?", p.Family.ID).Order("damage DESC") // 添加 family_id 查询条件
 	if filter.DamageRankMin != nil {
 		stat = stat.Limit(*filter.DamageRankMin)
 	}

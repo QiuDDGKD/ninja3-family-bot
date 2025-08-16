@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"errors"
 	"log"
 	"ninja3-family-bot/model"
 	"ninja3-family-bot/tools"
@@ -17,9 +18,10 @@ import (
 )
 
 type Processor struct {
-	Ctx context.Context
-	Api openapi.OpenAPI
-	DB  *gorm.DB
+	Ctx    context.Context
+	Api    openapi.OpenAPI
+	DB     *gorm.DB
+	Family *model.Family
 }
 
 type ProcessorConfig struct {
@@ -45,6 +47,8 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 	}
 
 	db.AutoMigrate(
+		&model.Family{},
+		&model.GroupFamilyRelation{},
 		&model.User{},
 		&model.AbyssSignUp{},
 		&model.AbyssLeave{},
@@ -61,6 +65,42 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 }
 
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
+	relation := &model.GroupFamilyRelation{}
+	if err := p.DB.Where("group_id = ?", data.GroupID).First(relation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			p.DB.Create(&model.GroupFamilyRelation{
+				GroupID:  data.GroupID,
+				FamilyID: "test",
+			})
+			relation = &model.GroupFamilyRelation{
+				GroupID:  data.GroupID,
+				FamilyID: "test",
+			}
+		} else {
+			p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+				MsgID:   data.ID,
+				Content: "家族绑定信息查询失败了喵~",
+			})
+			return nil // 家族绑定信息查询失败，直接返回
+		}
+	}
+
+	family := &model.Family{}
+	if err := p.DB.Where("id = ?", relation.FamilyID).First(family).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+				MsgID:   data.ID,
+				Content: "没有找到家族信息喵~",
+			})
+			return nil
+		}
+		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+			MsgID:   data.ID,
+			Content: "家族信息查询失败了喵~",
+		})
+		return nil // 家族信息查询失败，直接返回
+	}
+
 	splits := tools.GetSplits(input)
 	if len(splits) < 1 {
 		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
