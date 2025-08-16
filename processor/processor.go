@@ -18,10 +18,9 @@ import (
 )
 
 type Processor struct {
-	Ctx    context.Context
-	Api    openapi.OpenAPI
-	DB     *gorm.DB
-	Family *model.Family
+	Ctx context.Context
+	Api openapi.OpenAPI
+	DB  *gorm.DB
 }
 
 type ProcessorConfig struct {
@@ -100,7 +99,6 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 		})
 		return nil // 家族信息查询失败，直接返回
 	}
-	p.Family = family
 
 	splits := tools.GetSplits(input)
 	if len(splits) < 1 {
@@ -113,6 +111,9 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 
 	cmd := splits[0]
 	params := splits[1:]
+	pc := &ProcessContext{
+		Family: family,
+	}
 	processor, err := p.GetCMDProcessor(cmd)
 	if err != nil {
 		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
@@ -122,7 +123,7 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 		return nil // 错误信息已发送，直接返回
 	}
 
-	if err := processor(data, params...); err != nil {
+	if err := processor(pc, data, params...); err != nil {
 		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
 			MsgID:   data.ID,
 			Content: err.Error(),

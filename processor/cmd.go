@@ -14,7 +14,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type CMDProcessor func(*dto.WSGroupATMessageData, ...string) error
+type CMDProcessor func(*ProcessContext, *dto.WSGroupATMessageData, ...string) error
+
+type ProcessContext struct {
+	Family *model.Family
+}
 
 func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 	switch cmd {
@@ -45,10 +49,10 @@ func (p *Processor) GetCMDProcessor(cmd string) (CMDProcessor, error) {
 	return nil, errors.New("不知道你要干嘛喵~")
 }
 
-func (p *Processor) AbyssSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) AbyssSignUp(ctx *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	var User model.User
 	if len(params) < 2 {
-		if err := p.DB.Where("family_id = ? AND id = ?", p.Family.ID, data.Author.ID).First(&User).Error; err != nil {
+		if err := p.DB.Where("family_id = ? AND id = ?", ctx.Family.ID, data.Author.ID).First(&User).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.New("还没有登记信息，需要传入登记信息喵~")
 			}
@@ -74,12 +78,12 @@ func (p *Processor) AbyssSignUp(data *dto.WSGroupATMessageData, params ...string
 
 	// 删除请假记录
 	date := tools.GetNextFriday()
-	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", p.Family.ID, date, User.ID).Delete(&model.AbyssLeave{}).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", ctx.Family.ID, date, User.ID).Delete(&model.AbyssLeave{}).Error; err != nil {
 		return errors.New("取消请假失败了喵~")
 	}
 
 	abyssSignUp := model.AbyssSignUp{
-		FamilyID: p.Family.ID,
+		FamilyID: ctx.Family.ID,
 		Date:     date,
 		UserID:   User.ID,
 		Nickname: User.Nickname,
@@ -101,9 +105,9 @@ func (p *Processor) AbyssSignUp(data *dto.WSGroupATMessageData, params ...string
 }
 
 // 查询深渊报名
-func (p *Processor) QueryAbyssSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) QueryAbyssSignUp(ctx *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	var abyssSignUps []model.AbyssSignUp
-	if err := p.DB.Where("family_id = ? AND date = ?", p.Family.ID, tools.GetNextFriday()).Order("atk desc").Find(&abyssSignUps).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ?", ctx.Family.ID, tools.GetNextFriday()).Order("atk desc").Find(&abyssSignUps).Error; err != nil {
 		return errors.New("查询报名信息失败了喵~")
 	}
 
@@ -129,7 +133,7 @@ func (p *Processor) QueryAbyssSignUp(data *dto.WSGroupATMessageData, params ...s
 }
 
 // 深渊请假
-func (p *Processor) AbyssLeave(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) AbyssLeave(ctx *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	if len(params) < 1 {
 		return errors.New("需要传入请假理由喵~")
 	}
@@ -137,7 +141,7 @@ func (p *Processor) AbyssLeave(data *dto.WSGroupATMessageData, params ...string)
 	reason := params[0]
 
 	var user model.User
-	if err := p.DB.Where("family_id = ? AND id = ?", p.Family.ID, data.Author.ID).First(&user).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND id = ?", ctx.Family.ID, data.Author.ID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("还没有登记信息，需要先登记喵~")
 		}
@@ -146,12 +150,12 @@ func (p *Processor) AbyssLeave(data *dto.WSGroupATMessageData, params ...string)
 
 	// 删除报名记录
 	date := tools.GetNextFriday()
-	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", p.Family.ID, date, user.ID).Delete(&model.AbyssSignUp{}).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", ctx.Family.ID, date, user.ID).Delete(&model.AbyssSignUp{}).Error; err != nil {
 		return errors.New("取消报名失败了喵~")
 	}
 
 	abyssLeave := model.AbyssLeave{
-		FamilyID: p.Family.ID,
+		FamilyID: ctx.Family.ID,
 		Date:     date,
 		UserID:   user.ID,
 		Nickname: user.Nickname,
@@ -174,9 +178,9 @@ func (p *Processor) AbyssLeave(data *dto.WSGroupATMessageData, params ...string)
 }
 
 // 查询深渊请假
-func (p *Processor) QueryAbyssLeave(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) QueryAbyssLeave(ctx *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	var abyssLeaves []model.AbyssLeave
-	if err := p.DB.Where("family_id = ? AND date = ?", p.Family.ID, tools.GetNextFriday()).Order("user_id").Find(&abyssLeaves).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ?", ctx.Family.ID, tools.GetNextFriday()).Order("user_id").Find(&abyssLeaves).Error; err != nil {
 		return errors.New("查询请假信息失败了喵~")
 	}
 
@@ -201,7 +205,7 @@ func (p *Processor) QueryAbyssLeave(data *dto.WSGroupATMessageData, params ...st
 	return nil
 }
 
-func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) Register(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	if len(params) < 2 {
 		return errors.New("需要传入昵称和面板喵~")
 	}
@@ -214,6 +218,7 @@ func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) e
 	}
 
 	user := model.User{
+		FamilyID: pc.Family.ID,
 		ID:       data.Author.ID,
 		Nickname: nickname,
 		ATK:      atk,
@@ -234,7 +239,7 @@ func (p *Processor) Register(data *dto.WSGroupATMessageData, params ...string) e
 	return nil
 }
 
-func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) BattleSignUp(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	if len(params) < 1 {
 		return errors.New("需要传入报名的类型喵~")
 	}
@@ -245,7 +250,7 @@ func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...strin
 	}
 
 	var user model.User
-	if err := p.DB.Where("family_id = ? AND id = ?", p.Family.ID, data.Author.ID).First(&user).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND id = ?", pc.Family.ID, data.Author.ID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("还没有登记信息，需要先登记喵~")
 		}
@@ -253,7 +258,7 @@ func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...strin
 	}
 
 	battleSignUp := model.BattleSignUp{
-		FamilyID: p.Family.ID,
+		FamilyID: pc.Family.ID,
 		Date:     tools.GetNextBattleDate(),
 		UserID:   user.ID,
 		Nickname: user.Nickname,
@@ -277,9 +282,9 @@ func (p *Processor) BattleSignUp(data *dto.WSGroupATMessageData, params ...strin
 }
 
 // 查询家族战报名
-func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) QueryBattleSignUp(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	var battleSignUps []model.BattleSignUp
-	if err := p.DB.Where("family_id = ? AND date = ?", p.Family.ID, tools.GetNextBattleDate()).Order("tp").Find(&battleSignUps).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ?", pc.Family.ID, tools.GetNextBattleDate()).Order("tp").Find(&battleSignUps).Error; err != nil {
 		return errors.New("查询报名信息失败了喵~")
 	}
 
@@ -315,14 +320,14 @@ func (p *Processor) QueryBattleSignUp(data *dto.WSGroupATMessageData, params ...
 }
 
 // 家族战请假
-func (p *Processor) BattleLeave(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) BattleLeave(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	if len(params) < 1 {
 		return errors.New("需要传入请假理由喵~")
 	}
 
 	reason := params[0]
 	var user model.User
-	if err := p.DB.Where("family_id = ? AND id = ?", p.Family.ID, data.Author.ID).First(&user).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND id = ?", pc.Family.ID, data.Author.ID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("还没有登记信息，需要先登记喵~")
 		}
@@ -331,11 +336,11 @@ func (p *Processor) BattleLeave(data *dto.WSGroupATMessageData, params ...string
 
 	// 删除报名记录
 	date := tools.GetNextBattleDate()
-	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", p.Family.ID, date, user.ID).Delete(&model.BattleSignUp{}).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ? AND user_id = ?", pc.Family.ID, date, user.ID).Delete(&model.BattleSignUp{}).Error; err != nil {
 		return errors.New("取消报名失败了喵~")
 	}
 	battleLeave := model.BattleLeave{
-		FamilyID: p.Family.ID,
+		FamilyID: pc.Family.ID,
 		Date:     date,
 		UserID:   user.ID,
 		Nickname: user.Nickname,
@@ -355,9 +360,9 @@ func (p *Processor) BattleLeave(data *dto.WSGroupATMessageData, params ...string
 }
 
 // 查询家族战请假
-func (p *Processor) QueryBattleLeave(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) QueryBattleLeave(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	var battleLeaves []model.BattleLeave
-	if err := p.DB.Where("family_id = ? AND date = ?", p.Family.ID, tools.GetNextBattleDate()).Order("user_id").Find(&battleLeaves).Error; err != nil {
+	if err := p.DB.Where("family_id = ? AND date = ?", pc.Family.ID, tools.GetNextBattleDate()).Order("user_id").Find(&battleLeaves).Error; err != nil {
 		return errors.New("查询请假信息失败了喵~")
 	}
 	if len(battleLeaves) == 0 {
@@ -379,7 +384,7 @@ func (p *Processor) QueryBattleLeave(data *dto.WSGroupATMessageData, params ...s
 }
 
 // 抽奖
-func (p *Processor) Gacha(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) Gacha(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	tp, numStr := params[0], params[1]
 	num, err := strconv.Atoi(numStr)
 	if err != nil {
@@ -392,9 +397,9 @@ func (p *Processor) Gacha(data *dto.WSGroupATMessageData, params ...string) erro
 	result := make([]string, 0, num)
 	switch tp {
 	case "队长":
-		result, err = p.GachaCaptain(num)
+		result, err = p.GachaCaptain(pc, num)
 	case "成员":
-		result, err = p.GachaMember(num, params[2:])
+		result, err = p.GachaMember(pc, num, params[2:])
 	default:
 		err = errors.New("抽奖类型必须是 队长 或 成员 喵~")
 	}
@@ -425,7 +430,7 @@ func (p *Processor) Gacha(data *dto.WSGroupATMessageData, params ...string) erro
 	return nil
 }
 
-func (p *Processor) ImportAbyssRecord(data *dto.WSGroupATMessageData, params ...string) error {
+func (p *Processor) ImportAbyssRecord(pc *ProcessContext, data *dto.WSGroupATMessageData, params ...string) error {
 	if len(params) < 1 {
 		return errors.New("需要传入战报文件路径喵~")
 	}
@@ -473,7 +478,7 @@ func (p *Processor) ImportAbyssRecord(data *dto.WSGroupATMessageData, params ...
 			return fmt.Errorf("解析日期失败了喵~: %v", err)
 		}
 		record := model.AbyssRecord{
-			FamilyID: p.Family.ID,
+			FamilyID: pc.Family.ID,
 			Uid:      uid,
 			Date:     d,
 			Damage:   damage,
