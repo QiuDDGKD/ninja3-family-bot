@@ -100,6 +100,7 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 		})
 		return nil // 家族信息查询失败，直接返回
 	}
+	p.Family = family
 
 	splits := tools.GetSplits(input)
 	if len(splits) < 1 {
