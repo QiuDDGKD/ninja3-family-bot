@@ -66,6 +66,7 @@ func (p *Processor) AbyssSignUp(ctx *ProcessContext, data *dto.WSGroupATMessageD
 		}
 
 		User = model.User{
+			FamilyID: ctx.Family.ID,
 			ID:       data.Author.ID,
 			Nickname: nickname,
 			ATK:      atk,
