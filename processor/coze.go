@@ -43,17 +43,6 @@ func (c *Coze) GetResponse(input string) (string, error) {
 		},
 	}
 
-	chatResp, err := cozeCli.Chat.Create(ctx, req)
-	if err != nil {
-		fmt.Println("Error creating chats:", err)
-		return "", err
-	}
-	fmt.Println(chatResp)
-	fmt.Println(chatResp.LogID())
-	chat := chatResp.Chat
-	chatID := chat.ID
-	conversationID := chat.ConversationID
-
 	// The sdk provide an automatic polling method.
 	chat2, err := cozeCli.Chat.CreateAndPoll(ctx, req, nil)
 	if err != nil {
@@ -63,9 +52,9 @@ func (c *Coze) GetResponse(input string) (string, error) {
 
 	respContent := ""
 	for _, msg := range chat2.Messages {
+		fmt.Println("Message:", msg.Content)
 		respContent += msg.Content
 	}
 
-	fmt.Printf("Chat ID: %s, Conversation ID: %s\n", chatID, conversationID)
 	return respContent, nil
 }
