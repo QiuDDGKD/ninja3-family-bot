@@ -6,6 +6,7 @@ import (
 	"log"
 	"ninja3-family-bot/model"
 	"ninja3-family-bot/tools"
+	"strings"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -18,14 +19,16 @@ import (
 )
 
 type Processor struct {
-	Ctx context.Context
-	Api openapi.OpenAPI
-	DB  *gorm.DB
+	Ctx  context.Context
+	Api  openapi.OpenAPI
+	DB   *gorm.DB
+	Conf *ProcessorConfig
 }
 
 type ProcessorConfig struct {
 	QQBotCredentials *token.QQBotCredentials `yaml:"QQBotCredentials"`
 	MysqlDSN         string                  `yaml:"MysqlDSN"`
+	CozeConf         *CozeConf               `yaml:"CozeConf"`
 }
 
 func NewProcessor(conf *ProcessorConfig) *Processor {
@@ -57,9 +60,10 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 	)
 
 	return &Processor{
-		Ctx: ctx,
-		Api: api,
-		DB:  db,
+		Ctx:  ctx,
+		Api:  api,
+		DB:   db,
+		Conf: conf,
 	}
 }
 
@@ -98,6 +102,23 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 			Content: "家族信息查询失败了喵~",
 		})
 		return nil // 家族信息查询失败，直接返回
+	}
+
+	if !strings.HasPrefix(input, "/") {
+		resp, err := NewCoze(&CozeContext{GroupId: data.GroupID}, p.Conf.CozeConf).GetResponse(input)
+		if err != nil {
+			p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+				MsgID:   data.ID,
+				Content: "猫猫脑袋转不过来了喵~",
+			})
+			return nil // 请求 AI 失败，直接返回
+		}
+
+		p.Api.PostGroupMessage(p.Ctx, data.GroupID, &dto.MessageToCreate{
+			MsgID:   data.ID,
+			Content: resp,
+		})
+		return nil // AI 回复已发送，直接返回
 	}
 
 	splits := tools.GetSplits(input)
