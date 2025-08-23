@@ -52,6 +52,10 @@ func (c *Coze) GetResponse(input string) (string, error) {
 
 	respContent := ""
 	for _, msg := range chat2.Messages {
+		if msg.Type != coze.MessageTypeAnswer {
+			continue
+		}
+
 		respContent = msg.Content
 		break
 	}
