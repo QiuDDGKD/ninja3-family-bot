@@ -23,6 +23,7 @@ type Processor struct {
 	Api  openapi.OpenAPI
 	DB   *gorm.DB
 	Conf *ProcessorConfig
+	MC   *MsgCache
 }
 
 type ProcessorConfig struct {
@@ -64,10 +65,17 @@ func NewProcessor(conf *ProcessorConfig) *Processor {
 		Api:  api,
 		DB:   db,
 		Conf: conf,
+		MC:   NewMsgCache(time.Second * 10),
 	}
 }
 
 func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessageData) error {
+	p.MC.CleanUp()
+	if p.MC.Exists(data.ID) {
+		return nil // 消息已处理，直接返回
+	}
+	p.MC.Add(data.ID)
+
 	relation := &model.GroupFamilyRelation{}
 	if err := p.DB.Where("group_id = ?", data.GroupID).First(relation).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
