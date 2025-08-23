@@ -44,13 +44,17 @@ func (c *Coze) GetResponse(input string) (string, error) {
 	}
 
 	// The sdk provide an automatic polling method.
-	chat2, err := cozeCli.Chat.CreateAndPoll(ctx, req, nil)
+	timeout := 5
+	chat2, err := cozeCli.Chat.CreateAndPoll(ctx, req, &timeout)
 	if err != nil {
 		fmt.Println("Error in CreateAndPoll:", err)
 		return "", err
 	}
 
 	respContent := ""
+	for _, msg := range chat2.Messages {
+		fmt.Println("Message:", msg.Content, "MessageType:", msg.Type)
+	}
 	for _, msg := range chat2.Messages {
 		if msg.Type != coze.MessageTypeAnswer {
 			continue
