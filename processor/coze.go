@@ -52,8 +52,8 @@ func (c *Coze) GetResponse(input string) (string, error) {
 
 	respContent := ""
 	for _, msg := range chat2.Messages {
-		fmt.Println("Message:", msg.Content)
-		respContent += msg.Content
+		respContent = msg.Content
+		break
 	}
 
 	return respContent, nil
