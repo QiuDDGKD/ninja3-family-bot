@@ -19,11 +19,16 @@ func NewMsgCache(ttl time.Duration) *MsgCache {
 	}
 }
 
-// Add 添加消息ID到缓存
-func (mc *MsgCache) Add(msgID string) {
+// Add 添加消息ID到缓存，返回是否真的添加到缓存
+func (mc *MsgCache) Add(msgID string) bool {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
+	_, exists := mc.cache[msgID]
+	if exists {
+		return false // 已存在，未添加
+	}
 	mc.cache[msgID] = time.Now().Add(mc.ttl)
+	return true // 新添加
 }
 
 // Exists 检查消息ID是否存在

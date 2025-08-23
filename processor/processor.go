@@ -74,7 +74,10 @@ func (p *Processor) ProcessGroupMessage(input string, data *dto.WSGroupATMessage
 	if p.MC.Exists(data.ID) {
 		return nil // 消息已处理，直接返回
 	}
-	p.MC.Add(data.ID)
+	added := p.MC.Add(data.ID)
+	if !added {
+		return nil // 消息已处理，直接返回
+	}
 
 	relation := &model.GroupFamilyRelation{}
 	if err := p.DB.Where("group_id = ?", data.GroupID).First(relation).Error; err != nil {
